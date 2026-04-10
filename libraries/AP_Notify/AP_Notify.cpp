@@ -475,11 +475,14 @@ void AP_Notify::set_flight_mode_str(const char *str)
     _flight_mode_str[sizeof(_flight_mode_str)-1] = 0;
 }
 
-void AP_Notify::send_text(const char *str)
+void AP_Notify::send_text(const char *str, const bool urgent)
 {
-    strncpy(_send_text, str, sizeof(_send_text));
-    _send_text[sizeof(_send_text)-1] = 0;
-    _send_text_updated_millis = AP_HAL::millis();
+    const size_t text_index = static_cast<size_t>(urgent);
+    char* _text = _send_text[text_index];
+    const size_t text_size = NOTIFY_TEXT_BUFFER_SIZE * sizeof(char);
+    strncpy(_text, str, text_size);
+    _text[text_size - 1] = 0;
+    _send_text_updated_millis[text_index] = AP_HAL::millis();
 }
 
 #if AP_SCRIPTING_ENABLED

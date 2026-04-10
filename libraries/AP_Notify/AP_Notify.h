@@ -211,9 +211,9 @@ public:
     const char* get_flight_mode_str() const { return _flight_mode_str; }
 
     // send text to display
-    void send_text(const char *str);
-    const char* get_text() const { return _send_text; }
-    uint32_t get_text_updated_millis() const {return _send_text_updated_millis; }
+    void send_text(const char *str, const bool urgent = false);
+    const char* get_text(const bool urgent = false) const { return _send_text[static_cast<size_t>(urgent)]; }
+    uint32_t get_text_updated_millis(const bool urgent = false) const {return _send_text_updated_millis[static_cast<size_t>(urgent)]; }
  
 #if AP_SCRIPTING_ENABLED
     // send text to the display using scripting
@@ -254,8 +254,8 @@ private:
     AP_Int8 _buzzer_volume;
     AP_Int8 _led_len;
 
-    char _send_text[NOTIFY_TEXT_BUFFER_SIZE];
-    uint32_t _send_text_updated_millis; // last time text changed
+    char _send_text[2][NOTIFY_TEXT_BUFFER_SIZE];
+    uint32_t _send_text_updated_millis[2]; // last time text changed
     char _flight_mode_str[5];
 
     static NotifyDevice* _devices[];

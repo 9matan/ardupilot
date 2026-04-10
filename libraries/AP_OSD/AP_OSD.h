@@ -187,6 +187,7 @@ private:
     AP_OSD_Setting sats{true, 1, 3};
     AP_OSD_Setting fltmode{true, 2, 8};
     AP_OSD_Setting message{true, 2, 6};
+    AP_OSD_Setting urgent_message{true, 2, 10};
     AP_OSD_Setting gspeed{true, 2, 14};
     AP_OSD_Setting horizon{true, 14, 8};
     AP_OSD_Setting home{true, 14, 1};
@@ -279,6 +280,8 @@ private:
     void draw_sats(uint8_t x, uint8_t y);
     void draw_fltmode(uint8_t x, uint8_t y);
     void draw_message(uint8_t x, uint8_t y);
+    void draw_urgent_message(uint8_t x, uint8_t y);
+    void draw_message(uint8_t x, uint8_t y, const bool urgent);
     void draw_gspeed(uint8_t x, uint8_t y);
     void draw_horizon(uint8_t x, uint8_t y);
     void draw_home(uint8_t x, uint8_t y);

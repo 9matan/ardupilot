@@ -1045,6 +1045,22 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
 	AP_SUBGROUPINFO(rrpm, "RPM", 62, AP_OSD_Screen, AP_OSD_Setting),
 #endif
 
+   // @Param: UMESSAGE_EN
+    // @DisplayName: UMESSAGE_EN
+    // @Description: Displays urgent messages
+    // @Values: 0:Disabled,1:Enabled
+
+    // @Param: UMESSAGE_X
+    // @DisplayName: UMESSAGE_X
+    // @Description: Horizontal position on screen
+    // @Range: 0 59
+
+    // @Param: UMESSAGE_Y
+    // @DisplayName: UMESSAGE_Y
+    // @Description: Vertical position on screen
+    // @Range: 0 21
+    AP_SUBGROUPINFO(urgent_message, "UMESSAGE", 63, AP_OSD_Screen, AP_OSD_Setting),
+
     AP_GROUPEND
 };
 
@@ -1617,16 +1633,26 @@ void AP_OSD_Screen::draw_batused(uint8_t x, uint8_t y)
 }
 #endif
 
+void AP_OSD_Screen::draw_message(uint8_t x, uint8_t y)
+{
+    draw_message(x, y, false);
+}
+
+void AP_OSD_Screen::draw_urgent_message(uint8_t x, uint8_t y)
+{
+    draw_message(x, y, true);
+}
+
 //Autoscroll message is the same as in minimosd-extra.
 //Thanks to night-ghost for the approach.
-void AP_OSD_Screen::draw_message(uint8_t x, uint8_t y)
+void AP_OSD_Screen::draw_message(uint8_t x, uint8_t y, const bool urgent)
 {
     AP_Notify * notify = AP_Notify::get_singleton();
     if (notify) {
-        int32_t visible_time = AP_HAL::millis() - notify->get_text_updated_millis();
+        int32_t visible_time = AP_HAL::millis() - notify->get_text_updated_millis(urgent);
         if (visible_time < osd->msgtime_s *1000) {
             char buffer[NOTIFY_TEXT_BUFFER_SIZE];
-            strncpy(buffer, notify->get_text(), sizeof(buffer));
+            strncpy(buffer, notify->get_text(urgent), sizeof(buffer));
             int16_t len = strnlen(buffer, sizeof(buffer));
 
             for (int16_t i=0; i<len; i++) {
@@ -2564,6 +2590,7 @@ void AP_OSD_Screen::draw(void)
 #endif
 
     DRAW_SETTING(message);
+    DRAW_SETTING(urgent_message);
     DRAW_SETTING(horizon);
     DRAW_SETTING(compass);
     DRAW_SETTING(altitude);

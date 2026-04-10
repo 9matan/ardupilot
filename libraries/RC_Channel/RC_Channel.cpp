@@ -21,6 +21,7 @@
 
 #if AP_RC_CHANNEL_ENABLED
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <cmath>
 
@@ -1622,12 +1623,23 @@ bool RC_Channel::do_aux_function(const AuxFuncTrigger &trigger)
 #endif
 
 #if AP_GPS_ENABLED
-    case AUX_FUNC::GPS_DISABLE:
-        AP::gps().force_disable(ch_flag == AuxSwitchPos::HIGH);
+    case AUX_FUNC::GPS_DISABLE: {
+        bool const disable_gps = ch_flag == AuxSwitchPos::HIGH;
+        AP::gps().force_disable(disable_gps);
+        if(disable_gps)
+        {
+            static const char* gps_disabling_msg = "Big brother is not watching you!";
+            const bool is_urgent_msg = true;
+            GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "%s", gps_disabling_msg);
+            AP::notify().send_text(gps_disabling_msg, is_urgent_msg);
+            printf("%s", gps_disabling_msg);
+        }
+        
 #if AP_EXTERNAL_AHRS_ENABLED
         AP::externalAHRS().set_gnss_disable(ch_flag == AuxSwitchPos::HIGH);
 #endif
         break;
+    }
 
     case AUX_FUNC::GPS_DISABLE_YAW:
         AP::gps().set_force_disable_yaw(ch_flag == AuxSwitchPos::HIGH);

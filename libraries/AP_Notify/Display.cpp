@@ -618,7 +618,7 @@ void Display::update_text(uint8_t r)
     char msg [DISPLAY_MESSAGE_SIZE] = {};
     char txt [NOTIFY_TEXT_BUFFER_SIZE] = {};
 
-    const bool text_is_valid = AP_HAL::millis() - pNotify->_send_text_updated_millis < _send_text_valid_millis;
+    const bool text_is_valid = AP_HAL::millis() - pNotify->_send_text_updated_millis[0] < _send_text_valid_millis;
     if (!text_is_valid) {
         update_text_empty(r);
         return;

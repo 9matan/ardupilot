@@ -2043,6 +2043,7 @@ AP_AHRS::EKFType AP_AHRS::configured_ekf_type(void) const
 
 AP_AHRS::EKFType AP_AHRS::_active_EKF_type(void) const
 {
+    return EKFType::THREE;
     EKFType ret = fallback_active_EKF_type();
 
     switch (configured_ekf_type()) {
@@ -2101,6 +2102,8 @@ AP_AHRS::EKFType AP_AHRS::_active_EKF_type(void) const
 #endif
     }
 
+    static int last_debug_msg_index = 0;
+
 #if AP_AHRS_DCM_ENABLED
     // Handle fallback for fixed wing planes (including VTOL's) and ground vehicles.
     if (_vehicle_class == VehicleClass::FIXED_WING ||
@@ -2141,9 +2144,20 @@ AP_AHRS::EKFType AP_AHRS::_active_EKF_type(void) const
         const bool can_use_ekf = filt_state.flags.attitude && filt_state.flags.vert_vel && filt_state.flags.vert_pos;
         if (!can_use_dcm && can_use_ekf) {
             // no choice - continue to use EKF
+            if(last_debug_msg_index != 1)
+            {
+                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "H%i Ff%i %s", EKF3.healthy(), fly_forward, "can_use_ekf");
+                last_debug_msg_index = 1;
+            }
             return ret;
         } else if (!can_use_ekf) {
             // No choice - we have to use DCM
+            if(last_debug_msg_index != 2)
+            {
+                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "H%i Ff%i !!!can_use_ekf: a%i v%i p%i"
+                    , EKF3.healthy(), fly_forward, filt_state.flags.attitude, filt_state.flags.vert_vel, filt_state.flags.vert_pos);
+                last_debug_msg_index = 2;
+            }
             return EKFType::DCM;
         }
 
@@ -2169,6 +2183,12 @@ AP_AHRS::EKFType AP_AHRS::_active_EKF_type(void) const
                Note: When operating in a VTOL flight mode that actively controls height such as QHOVER,
                the EKF gives better vertical velocity and position estimates and height control characteristics.
             */
+            if(last_debug_msg_index != 3)
+            {
+                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "H%i Ff%i %s"
+                    , EKF3.healthy(), fly_forward, "GPS fix, no global position");
+                last_debug_msg_index = 3;
+            }
             return EKFType::DCM;
         }
 
@@ -2180,6 +2200,11 @@ AP_AHRS::EKFType AP_AHRS::_active_EKF_type(void) const
                that DCM will not be able to navigate either so we are primarily concerned with
                providing an attitude, vertical position and vertical velocity estimate.
             */
+            if(last_debug_msg_index != 4)
+            {
+                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "H%i Ff%i %s", EKF3.healthy(), fly_forward, "Handle complete loss of navigation");
+                last_debug_msg_index = 4;
+            }
             return EKFType::DCM;
         }
 
@@ -2195,14 +2220,29 @@ AP_AHRS::EKFType AP_AHRS::_active_EKF_type(void) const
                   speed the EKF should get yaw alignment
                 */
                 if (filt_state.flags.gps_quality_good) {
+                    if(last_debug_msg_index != 5)
+                    {
+                        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "H%i Ff%i %s", EKF3.healthy(), fly_forward, "gps_quality_good");
+                        last_debug_msg_index = 5;
+                    }
                     return ret;
                 }
+            }
+            if(last_debug_msg_index != 6)
+            {
+                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "H%i Ff%i %s", EKF3.healthy(), fly_forward, "!filt_state.flags.horiz_vel ||");
+                last_debug_msg_index = 6;
             }
             return EKFType::DCM;
         }
     }
 #endif
-
+    
+    if(last_debug_msg_index != 7)
+    {
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "H%i Ff%i ret: %i", EKF3.healthy(), fly_forward, (int)ret);
+        last_debug_msg_index = 7;
+    }
     return ret;
 }
 

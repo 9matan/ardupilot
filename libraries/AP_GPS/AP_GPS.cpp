@@ -271,6 +271,26 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     AP_SUBGROUPINFO(params[1], "2_", 33, AP_GPS, AP_GPS::Params),
 #endif
 
+#if AP_GPS_STATE_VALIDATION_ENABLED
+    // @Param: _MAX_DFVS
+    // @DisplayName: Max distance from valid state
+    // @Description: The field is used by the GPS state validation process. If the new state is farther from the last valid state than the specified value, it is considered invalid. 
+    // @Range: 1.0 10000.0
+    // @Increment: 0.1
+    // @User: Advanced
+    // @Units: m
+    AP_GROUPINFO("_MAX_DFVS", 34, AP_GPS, _max_distance_from_valid_state, 1000.0f),
+
+    // @Param: _LAST_VST
+    // @DisplayName: Last valid state timeout
+    // @Description: The field is used by the GPS state validation process. If there is no valid state for more than the timeout, the GPS is disabled. 
+    // @Range: 1000 10000
+    // @Increment: 1
+    // @User: Advanced
+    // @Units: ms
+    AP_GROUPINFO("_LAST_VST", 35, AP_GPS, _last_valid_state_timeout_ms, 2000),
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
+
     AP_GROUPEND
 };
 
@@ -286,6 +306,9 @@ AP_GPS::AP_GPS()
         AP_HAL::panic("AP_GPS must be singleton");
     }
     _singleton = this;
+#if AP_GPS_STATE_VALIDATION_ENABLED
+    _enalbe_gps_state_validation = false;
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
 }
 
 // return true if a specific type of GPS uses a UART
@@ -878,6 +901,19 @@ void AP_GPS::update_instance(uint8_t instance)
     // we have an active driver for this instance
     bool result = drivers[instance]->read();
     uint32_t tnow = AP_HAL::millis();
+
+#if AP_GPS_STATE_VALIDATION_ENABLED 
+    if (_enalbe_gps_state_validation) {
+        const bool is_state_valid = is_gps_state_valid(
+            instance, tnow
+        );
+        if (!is_state_valid) {
+            set_enable_gps_state_validation(false);
+            force_disable(true);
+            GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "GPS is disabled due to invalid state of %u instance", instance);
+        }
+    }
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
 
     // if we did not get a message, and the idle timer of 2 seconds
     // has expired, re-initialise the GPS. This will cause GPS
@@ -2010,6 +2046,42 @@ bool AP_GPS::gps_yaw_deg(uint8_t instance, float &yaw_deg, float &accuracy_deg, 
     }
     return true;
 }
+
+#if AP_GPS_STATE_VALIDATION_ENABLED
+bool AP_GPS::is_gps_state_valid(const uint8_t instance, const uint32_t state_time_ms)
+{
+    const GPS_State& s = state[instance];
+
+    // wait for GPS to get some lock
+    if (s.status <= AP_GPS_FixType::NONE) {
+        return true;
+    }
+
+    GPS_StateValidation& sv = state_validations[instance];
+
+    // validate the horizontal distance - ignore altitude 
+    const Location last_valid_location = Location(
+        sv.last_valid_state.lat
+        , sv.last_valid_state.lng
+        , 0
+        , Location::AltFrame::ABSOLUTE
+    );
+    // if it is the first state - just accept it
+    const bool is_location_valid = sv.last_valid_state_time_ms == 0
+        || s.location.get_distance(last_valid_location) <= _max_distance_from_valid_state;
+
+    if (is_location_valid) {
+        sv.last_valid_state.lat = s.location.lat;
+        sv.last_valid_state.lng = s.location.lng;
+        sv.last_valid_state_time_ms = state_time_ms;
+        return true;
+    }
+
+    // give some time for the GPS to return to the light side
+    // you were invented to show the right path, not to mislead.
+    return state_time_ms - sv.last_valid_state_time_ms <= static_cast<uint32_t>(_last_valid_state_timeout_ms);
+}
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
 
 /*
  * Old parameter metadata.  Until we have versioned parameters, keeping

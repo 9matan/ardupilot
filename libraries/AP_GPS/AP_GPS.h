@@ -566,6 +566,18 @@ public:
         _force_disable_gps_yaw = disable;
     }
 
+#if AP_GPS_STATE_VALIDATION_ENABLED
+    // used to validate gps states. It disables GPS if the jamming is detected
+    void set_enable_gps_state_validation(const bool enable) {
+        if (_enalbe_gps_state_validation != enable) {
+            _enalbe_gps_state_validation = enable;
+            for(int i = 0; i < GPS_MAX_INSTANCES; ++i) {
+                state_validations[i] = GPS_StateValidation{};
+            }
+        }
+    }
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
+
     // handle possibly fragmented RTCM injection data
     void handle_gps_rtcm_fragment(uint8_t flags, const uint8_t *data, uint8_t len);
 
@@ -618,6 +630,8 @@ protected:
     AP_Int8 _blend_mask;
     AP_Int16 _driver_options;
     AP_Int8 _primary;
+    AP_Float _max_distance_from_valid_state;
+    AP_Int16 _last_valid_state_timeout_ms;
 
     uint32_t _log_gps_bit = -1;
 
@@ -664,11 +678,29 @@ private:
         // the average time delta
         float average_delta_ms;
     };
+
+#if AP_GPS_STATE_VALIDATION_ENABLED
+    struct GPS_StateValidation
+    {
+        struct State
+        {
+            int32_t lat; // in 1E7 degrees
+            int32_t lng; // in 1E7 degrees
+        };
+
+        State last_valid_state;
+        uint32_t last_valid_state_time_ms;
+    };
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
+
     // Note allowance for an additional instance to contain blended data
     GPS_timing timing[GPS_MAX_INSTANCES];
     GPS_State state[GPS_MAX_INSTANCES];
     AP_GPS_Backend *drivers[GPS_MAX_INSTANCES];
     AP_HAL::UARTDriver *_port[GPS_MAX_RECEIVERS];
+#if AP_GPS_STATE_VALIDATION_ENABLED
+    GPS_StateValidation state_validations[GPS_MAX_INSTANCES];
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
 
     /// primary GPS instance
     uint8_t primary_instance;
@@ -791,6 +823,10 @@ private:
     // used for flight testing with GPS yaw loss
     bool _force_disable_gps_yaw;
 
+#if AP_GPS_STATE_VALIDATION_ENABLED
+    bool _enalbe_gps_state_validation;
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
+
     // logging support
     void Write_GPS(uint8_t instance);
 
@@ -809,6 +845,10 @@ private:
 #endif
 
     void convert_parameters();
+
+#if AP_GPS_STATE_VALIDATION_ENABLED
+    bool is_gps_state_valid(const uint8_t instance, const uint32_t state_time_ms);
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
 };
 
 namespace AP {

@@ -1928,6 +1928,13 @@ bool AP_Arming::arm(AP_Arming::Method method, const bool do_arming_checks)
 #if defined(HAL_ARM_GPIO_PIN)
     update_arm_gpio();
 #endif
+
+#if AP_GPS_STATE_VALIDATION_ENABLED
+    if (armed) {
+        AP::gps().set_enable_gps_state_validation(true);
+    }
+#endif // AP_GPS_STATE_VALIDATION_ENABLED
+
     return armed;
 }
 
